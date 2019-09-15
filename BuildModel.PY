@@ -91,7 +91,9 @@ for n in range(len(paces)):
             below += 1
         else:
             above += 1
-    paceData.append([x, above, below])
+    paceData.append([x, below, above])
+
+print(paceData)
 
 with open('bar.csv', 'w', newline='') as csvFile:
     writer = csv.writer(csvFile)
