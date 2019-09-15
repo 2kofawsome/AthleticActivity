@@ -47,6 +47,8 @@ cords = streams['latlng'].data
 times = streams['time'].data
 distances = streams['distance'].data
 
+csvData = [['x', 'y', 'z']]
+
 import csv
 from datetime import datetime
 
@@ -55,12 +57,12 @@ pacePoints = 0
 paceSum = 0
 paces = [[]]
 
-csvRoutes = []
+
 x = 0
 lastD = 0
 lastT = 0
 for n in range(len(times)): #x, y, z, speed
-    csvRoutes.append([cords[n][0], cords[n][1], heights[n]])
+    csvData.append([cords[n][0], cords[n][1], heights[n]])
 
     
     DDif = distances[n] - lastD
@@ -93,16 +95,21 @@ for n in range(len(paces)):
             above += 1
     paceData.append([x, above, below])
 
+with open('route.csv', 'w', newline='') as csvFile:
+    writer = csv.writer(csvFile)
+    writer.writerows(csvData)
+csvFile.close()
+
 with open('bar.csv', 'w', newline='') as csvFile:
     writer = csv.writer(csvFile)
     writer.writerows(paceData)
 csvFile.close()
 
-xMax = csvRoutes[1][0]
-xMin = csvRoutes[1][0]
-yMax = csvRoutes[1][1]
-yMin = csvRoutes[1][1]
-for n in csvRoutes[1:]:
+xMax = csvData[1][0]
+xMin = csvData[1][0]
+yMax = csvData[1][1]
+yMin = csvData[1][1]
+for n in csvData[1:]:
     if n[0] > xMax:
         xMax = n[0]
     if n[0] < xMin:
@@ -117,11 +124,6 @@ yMin = float(yMin)
 xMax = float(xMax)
 yMax = float(yMax)
 
-xMinR = float(xMin)
-yMinR = float(yMin)
-xMaxR = float(xMax)
-yMaxR = float(yMax)
-
 if xMax - xMin > yMax - yMin:
     add = ((xMax - xMin) - (yMax - yMin))/2
     yMax += add
@@ -131,11 +133,6 @@ elif yMax - yMin > xMax - xMin:
     xMax += add
     xMin -= add
 
-yMax += (yMax-yMin)*.05
-xMax += (xMax-xMin)*.05
-yMin -= (yMax-yMin)*.05
-xMin -= (xMax-xMin)*.05
-
 ###################################################33
 
 import json
@@ -143,52 +140,39 @@ import urllib.request
 import math
 
 def elevation(lat1, lng1, lat2, lng2, smpls):
+    global elevation_matrix
     apikey = "AIzaSyDjTjrZdOAQ2hZ4fTo-jyqO5wXs1FqptBY" 
     url = "https://maps.googleapis.com/maps/api/elevation/json" 
     request = urllib.request.urlopen(url+"?path="+str(lat1)+","+str(lng1)+"|"+str(lat1)+","+str(lng2)+"&samples="+str(smpls)+"&key="+apikey) 
-    results = json.load(request).get('results')
-    elevation_list = []
+    results = json.load(request).get('results') 
     for i in range(0, smpls): 
         if 0 < len(results):
-            elevation_list.append(results[i].get('elevation'))
-    return elevation_list
+            elevation_matrix.append([lat1, lng1+i*((lng2-lng1)/smpls), results[i].get('elevation')])
             
-smpls = 40
-lat1= xMin
-lng1 = yMin
-lat2 = xMax
-lng2 = yMax
 
-int_dist = abs(lng2 - lng1) / smpls
-elevation_matrix = []
-for i in range(smpls): 
-    elevation_matrix.append(elevation(lat1+i*int_dist, lng1, lat2+i*int_dist, lng2, smpls))
+def elevation_path(lat1, lng1, lat2, lng2, smpls): 
+    global elevation_matrix
+    int_dist = abs(lng2 - lng1) / smpls
+    smpls_2 = math.ceil(abs(lat2 - lat1) / int_dist)
+    elevation_matrix = []
+    print(smpls)
+    print(smpls_2)
+    for i in range(smpls_2): 
+        elevation(lat1+i*int_dist, lng1, lat2+i*int_dist, lng2, smpls)
 
-with open('altitude.csv', 'w', newline='') as csvFile:
+
+elevation_path(xMin, yMin, xMax, yMax, 20)
+###################################################33
+
+with open('terrain.csv', 'w', newline='') as csvFile:
     writer = csv.writer(csvFile)
     writer.writerows(elevation_matrix)
 csvFile.close()
 
-
-#xMinR
-#yMinR
-#xMaxR
-#yMaxR
-
-xFactor = smpls / (xMax - xMin)
-yFactor = smpls / (yMax - yMin)
-
-
-for n in range(len(csvRoutes)):
-    csvRoutes[n][0] = (csvRoutes[n][0]-xMin)*xFactor
-    csvRoutes[n][1] = (csvRoutes[n][1]-yMin)*yFactor
-
-
-with open('route.csv', 'w', newline='') as csvFile:
+with open('altitude.csv', 'w', newline='') as csvFile:
     writer = csv.writer(csvFile)
-    writer.writerows(csvRoutes)
+    writer.writerows(alt_matrix)
 csvFile.close()
-
 
 
 
